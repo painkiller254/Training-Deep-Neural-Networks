@@ -1,0 +1,150 @@
+# Training-Deep-Neural-Networks
+## Deep Neural Networks in Machine Learning
+
+You may need to train a much deeper DNN, perharps with 10 layers or much moer, each containing hundreds of neurons, connected by hundreds of thousands of connections. This would not be a walk in the park:
+
+. First, you would be faced with the tricky vanishing gradients problem that affects deep neaural networks and makes lower layers very hard to train.
+
+. Second, you might not have enough training data for such a large network, or it might be too costly to label.
+
+. Third, trianing may be extremely slow.
+
+.fourth,a model with millions of parameters would serverly risk overfitting the training set, especially if there are not enough trianing instances, or they are too noisy.
+
+
+## Vanishing/Exploding Gradients Problems
+
+Gradients often get smaller and smaller as the algorithm progresses down the lower layers. As a result, the Gradient Descent update leaves the lower layer connection weights virtually unchanged, and training never converges to a good solution.
+
+This is called the vanishing gradients problem. 
+
+In some other cases the opposite can happen: the gradients can grow bigger and bigger, so many layers get insanely large weights updateds and the algorithm diverges. 
+
+This is the exploding gradients problem, which is mostly encountered in recurrent neural networks.
+
+Looking at the logistic regression function, you can see that when inputs become very large (negative or positive), the function satuartes at 0 or 1, with a derivative extremely close to 0. Thus when backpropagation kicks in, it has virtually no gradient to propagate back through the network, and what little gradient exists keeps getting diluted as backpropagation progresses down through the top layers, so there is really nothing left for the lower layers.
+
+
+## Glorot and He Initializations
+
+To significantly alleviate this problem, we need the signal to flow properly in both directions: in the forward direction when making predictions, and in the reverse direction when backpropagating gradients.
+
+For the signal to flow properly, the authors argue that we need the variance of the outputs of each layer to be equal to the variance of its iputs, and we also need the gradients to have equal variance before and after flowing through a alayer in the reverse direction.
+
+By default Keras uses Glorot initialization with a uniform distribution.
+
+
+## Nonsaturating Actiavtion functions
+
+Unfortunately, the ReLU activation function is not perfect. It suffers from a roblem known as the dying ReLUs: during training, some neurons effectively die, meaning they stop outputting anything other than 0. 
+
+To solve this problem, you may want to use a variant of the ReLU function, such as the leaky ReLU. 
+
+The hyperparametr alpha defines how much the function "leaks": it is the slope of the function for z <0, and is typically set to 0.01.
+
+Randomized leaky ReLU(RReLU) :- alpha is picked randomly in a given range during training, and it is fixed to an average value during testing.
+
+Parametric leaky ReLU :- alpha is authorized to be learned during training (instead of being a hyperparameter, it becomes a parameter that can be modified by backpropagation like any other paramater).
+
+Exponential linear unit (ELU) :- it looks a lot like the ReLU function, with a few major differences:
+
+. First it takes on negative values when z < 0, which allows the unit to have an average output closer to 0. This helps alleviate the vanishsing gradients problem.
+
+. second, it has a nonzero gradient for z<0, which avoid the dead neurons problem.
+
+. Third, if alpha is equal to 1 then the function is smooth everywhere, including around z=0, which helps speed up gradient descent, since it does not bounce as much left and right of z = 0.
+
+
+The main drawback of ELU actiavtion function is that it is slower to compute than the ReLU and its variants, but during training this is compensated by the faster convergence rate.
+
+
+Self-Normalizing Neural Networks:- if you build a neural network composed exclusively of a stack of dense layers, and if all hidden layers use the SELU actiavtion function, then the network will self-normalize: the output of each layer will tend to preserve mean 0 and standard deviation 1 during training, which solves the vanishing/exploding gradient problem.
+
+
+However, there are a few conditions for self-normalization to happen:
+
+. The inputs must be standadizes (mean 0 and standard deviation 1).
+
+. Evry hidden layer's weights must also be initialized using LeCun normal initilaization.
+
+. The network's architecture must be seqential. Unfortunately, if you try to use SELU in non-sequntial architectures, such as recurrent networks, self normalization will not be guranteed.
+
+. Self-normalization is guranteed if all layers are dense. However in practice the SELU activation function seems to work great with convolutional neural nets as well.
+
+
+
+## Batch Normalization
+
+This technique consists of adding an operation in the model just before or after the activation function of each hidden layer, simply zero-centering and normalizing each input, then scaling and shifting the result using two new paramaters vectors per layer:
+
+one for scaling, the other for shifting.
+
+In other words, this operation lets the model learn the optimal scale and the mean f each of the layers inputs.
+
+The authors demosntrated that this technique improved all the deep neural networks they experimented with, leading to a huge improvement in the ImageNet classification task.
+
+
+Batch Normalization does, however, add some complexity to the model.
+Moreover there is a runtime penalty: the neural network makes slower predictions due to extra computations required at each layer.
+
+
+## Gradinet Clipping
+
+Another popular technique to lessen the exploding gradinets problem is to simply clip the gradients during back propagation so that they never exeed some threshold.
+
+the technique if most often used in recurrent neural networks, as Batch normalization is trivky to use un RNNs.
+
+
+## Reusing Pretrained Layers
+
+Its generally not a good idea to train a very large DNN from scratch: instead you should always try to find an existing neural network that accomplishes a similar task to the one you are trying to tackle, then just reuse the lower layers of this network.
+
+this is called transfer learning.
+
+
+## unsupervised Pretraining
+
+Suppose you want to tackle a complex task for which you dont have much labeled training data, but unfortunately you cannot find a model trained on a similar task.
+
+Dont lose hope! First you should try to gather more labelled training data, but if its too hard or expensive, you may stillbe able to perfrom unsupervised pretraining.
+
+If you can gather plenty of unlabeled training data, you can try to train the layers one by one, strating with the lowest layer and then going up, using an unsupervised feature detector algorithm usch as Restricted Boltzman Machines or autoencoders.
+
+Each ;layer is trained on the output of the previously trained layers (all layers except te one being trained are frozen).
+
+Once all layers have been trained this way, you can add the output layer for your task, and fine-tune the final network using supervised learning.
+
+
+## Pretaraing on an Auxiliary Task
+
+If you dont have much labelled training data, one last option is to train a first neural network on an auziliary task for which you can easily obtain or generate labeled training data, then reuse the lower layers of that network for your actual task.
+
+The first neural network lower layers will learn feature detectors that will likely be reusable by the second neyral network.
+
+
+## Momentum Optimization
+
+This cares a great deal about what previous gradients were: at each iteration, it subtracts the loval gradint from the momentum vector m (multiplied by learning rate n), and it updates the weights by simply adding this momentum vector.
+
+In other words, the gradient is used for acceleration, not for speed. The lagorithm introduces a new hyperparamnetr beta, simply called the momentum, which must be set between 0 and 1. 
+
+
+## Nesterov Accelerated Gradient
+
+The idea is to measure the gradient of the cost function not a the local position but slightly ahead in the direction of the momentum
+
+
+## Learning Rate Scheduling
+
+There are many different strategies to reduce the learning rate during training. 
+
+The most common are:
+
+i) Power Scheduling:
+ii) Exponential scheduling
+iii) Piecewise constant scheduling
+iv)Performance scheduling
+
+
+## Dropout
+Its a fairly simple algorithm:- at evry trainig step, evry neuron has a probability p of being temporarily dropped out, meaning it will be entirely inored during this training step, but it may be active during the next step
